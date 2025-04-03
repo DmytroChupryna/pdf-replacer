@@ -42,7 +42,6 @@ export async function POST(req: NextRequest) {
       pdfDoc.registerFontkit(fontkit);
       const form = pdfDoc.getForm();
       const customFont = await pdfDoc.embedFont(fontBytes, { subset: true });
-
       for (const [fieldName, fieldData] of Object.entries(row)) {
         try {
           const field = form.getTextField(fieldName);
