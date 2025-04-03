@@ -73,6 +73,6 @@ export function generateCellsObject(
       });
     }
   });
-  console.log("🔍 Перетворені дані:", result);
+
   return result;
 }
