@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 export default function Home() {
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
   const [pdfFiles, setPdfFiles] = useState<string[]>([]);
-  const [names, setNames] = useState<string[]>([]);
+  const [names, setNames] = useState<string[][]>([]);
   const [loading, setLoading] = useState(false);
-  const [generatedFiles, setGeneratedFiles] = useState<string[]>([]);
+  const [generatedFiles, setGeneratedFiles] = useState<{ name: string; file: string }[]>([]);
   const [uploadingToDrive, setUploadingToDrive] = useState(false);
   const [driveResult, setDriveResult] = useState<string | null>(null);
 
@@ -16,7 +16,7 @@ export default function Home() {
       .then((data) => setNames(data.names))
       .catch((err) => console.error("Помилка отримання імен:", err));
 
-    fetch("/api/listPdfs") // Новий API для отримання списку PDF
+    fetch("/api/listPdfs")
       .then((res) => res.json())
       .then((data) => setPdfFiles(data.files))
       .catch((err) => console.error("Помилка отримання PDF:", err));
@@ -55,31 +55,6 @@ export default function Home() {
     }
   };
 
-  // const handleDownloadZip = async () => {
-  //   try {
-  //     const response = await fetch("/api/zipFiles", {
-  //       method: "POST",
-  //       body: JSON.stringify({ files: generatedFiles }),
-  //       headers: { "Content-Type": "application/json" }
-  //     });
-
-  //     if (!response.ok) throw new Error("Не вдалося створити ZIP");
-
-  //     const blob = await response.blob();
-  //     const url = URL.createObjectURL(blob);
-
-  //     const link = document.createElement("a");
-  //     link.href = url;
-  //     link.download = "generated_files.zip";
-  //     document.body.appendChild(link);
-  //     link.click();
-  //     document.body.removeChild(link);
-  //   } catch (error) {
-  //     alert("❌ Сталася помилка при створенні архіву");
-  //     console.error(error);
-  //   }
-  // };
-
   const handleSaveToDrive = async () => {
     if (generatedFiles.length === 0) return;
 
@@ -107,6 +82,15 @@ export default function Home() {
     } finally {
       setUploadingToDrive(false);
     }
+  };
+
+  const handleDownload = (file: { name: string; file: string }) => {
+    const byteArray = Uint8Array.from(atob(file.file), (c) => c.charCodeAt(0));
+    const blob = new Blob([byteArray], { type: "application/pdf" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = file.name;
+    link.click();
   };
 
   return (
@@ -150,17 +134,16 @@ export default function Home() {
 
         {generatedFiles.length > 0 && (
           <div className="mt-6">
-            <h2 className="text-lg font-bold text-black">Завантажені файли:</h2>
+            <h2 className="text-lg font-bold text-black">Згенеровані файли:</h2>
             <ul>
               {generatedFiles.map((file, index) => (
-                <li key={index}>
-                  <a
-                    href={file}
-                    download
+                <li key={index} className="mb-1">
+                  <button
                     className="text-blue-600 hover:underline"
+                    onClick={() => handleDownload(file)}
                   >
-                    {file}
-                  </a>
+                    {file.name}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -177,13 +160,6 @@ export default function Home() {
               </button>
 
               {driveResult && <p className="mt-2 text-black">{driveResult}</p>}
-
-              {/* <button
-                className="bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700"
-                onClick={handleDownloadZip}
-              >
-                Скачати Zip архів
-              </button> */}
             </div>
           </div>
         )}

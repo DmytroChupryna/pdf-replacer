@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const fileBuffer = fs.readFileSync(filePath);
     const fontBytes = fs.readFileSync(fontPath);
 
-    const generatedFiles: string[] = [];
+    const generatedFiles: { name: string; file: string }[] = [];
 
     for (const row of transformed) {
       const pdfDoc = await PDFDocument.load(fileBuffer);
@@ -60,11 +60,14 @@ export async function POST(req: NextRequest) {
         .replace(/[^\w\-]/g, "");
 
       const outputFileName = `${fileName.replace('.pdf', '')}_${fullName}.pdf`;
-      const outputPath = path.join(process.cwd(), "public", outputFileName);
       const modifiedPdfBytes = await pdfDoc.save();
 
-      fs.writeFileSync(outputPath, modifiedPdfBytes);
-      generatedFiles.push(`/${outputFileName}`);
+      const base64Pdf = Buffer.from(modifiedPdfBytes).toString("base64");
+
+      generatedFiles.push({
+        name: outputFileName,
+        file: base64Pdf,
+      });
     }
 
     return NextResponse.json({ files: generatedFiles });

@@ -1,19 +1,17 @@
-
 import { google } from "googleapis";
-import fs from "fs";
-import path from "path";
+import { Readable } from "stream";
 import { NextRequest, NextResponse } from "next/server";
 import { writeCredentialsTempFile } from "../utils/utils";
-
-
-// const CREDENTIALS_PATH = path.join(process.cwd(), "public", "apialliance-e26e4074ea50.json");
 
 const SCOPES = ["https://www.googleapis.com/auth/drive"];
 const PARENT_FOLDER_ID = "1ITN5NT04vPRTTfcX8of05H89d3POvny5";
 
+let keyFile = writeCredentialsTempFile();
+if (process.env.NODE_ENV === "development") {
+  keyFile = process.cwd() + "/.secrets/apialliance-e26e4074ea50.json";
+}
+
 async function authorizeDrive() {
-  const keyFile = writeCredentialsTempFile()
-  console.log("keyFile", keyFile);
   const auth = new google.auth.GoogleAuth({
     keyFile,
     scopes: SCOPES,
@@ -46,37 +44,28 @@ export async function POST(req: NextRequest) {
     const folderId = folder.data.id!;
     const uploadedFiles: string[] = [];
 
-    for (const relativePath of files) {
-      const filePath = path.join(process.cwd(), "public", relativePath.replace(/^\/+/, ""));
-      if (!fs.existsSync(filePath)) continue;
+    for (const file of files) {
+      const { name, file: base64 } = file;
+      const buffer = Buffer.from(base64, "base64");
 
       const fileMetadata = {
-        name: path.basename(filePath),
+        name,
         parents: [folderId],
-      };
-
-      const media = {
-        mimeType: "application/pdf",
-        body: fs.createReadStream(filePath),
       };
 
       const res = await drive.files.create({
         requestBody: fileMetadata,
-        media,
+        media: {
+          mimeType: "application/pdf",
+          body: Readable.from(buffer), // ✅ Виправлено тут
+        },
         fields: "id, name",
       });
 
       uploadedFiles.push(res.data.name!);
-
-      // Видаляємо після завантаження
-      fs.unlinkSync(filePath);
     }
 
-    return NextResponse.json({
-      success: true,
-      folderId,
-      files: uploadedFiles,
-    });
+    return NextResponse.json({ success: true, folderId, files: uploadedFiles });
   } catch (error) {
     console.error("❌ Помилка при завантаженні на Google Drive:", error);
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });

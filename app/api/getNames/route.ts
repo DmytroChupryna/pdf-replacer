@@ -1,13 +1,24 @@
 import { google } from "googleapis";
 import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 import { writeCredentialsTempFile } from "../utils/utils";
 
 // ID таблиці Google Sheets (заміни на свій)
 const SPREADSHEET_ID = "1N4aTjrDy1IaMFs0Bpgiu2nVelwpc7Cgb-41OBlFq7xY";
 const SHEET_NAME = "Аркуш1"; // Назва листа (замінити за потреби)
 
+const CREDENTIALS_PATH = path.join(process.cwd(), ".secrets", "apialliance-e26e4074ea50.json");
+let keyFile = writeCredentialsTempFile()
+if (process.env.NODE_ENV === "development") {
+  keyFile = CREDENTIALS_PATH;
+}
+
+
 async function getNamesFromGoogleSheets() {
-  const keyFile = writeCredentialsTempFile(); // створює тимчасовий файл
+  if (!fs.existsSync(keyFile)) {
+    throw new Error("Файл credentials.json не знайдено!");
+  }
 
   const auth = new google.auth.GoogleAuth({
     keyFile,
