@@ -13,8 +13,7 @@ export default function DataRowsList({
   selectedRows,
   setSelectedRows
 }: Props) {
-  if (loading) return <p className="text-black">Завантаження рядків...</p>;
-  if (data.length < 2)
+  if (data.length < 2 && !loading)
     return <p className="text-black">Немає даних для відображення.</p>;
 
   const headers = data[0];
