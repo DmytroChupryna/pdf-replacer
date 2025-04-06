@@ -1,20 +1,36 @@
 "use client";
 import { useEffect, useState } from "react";
+import PdfSelector from "./components/PdfSelector";
+import GeneratedFilesList from "./components/GeneratedFilesList";
+import PdfActions from "./components/PdfActions";
+import DataRowsList from "./components/DataRowsList";
 
 export default function Home() {
-  const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
+  const [selectedPdf, setSelectedPdf] = useState<string[]>([]);
   const [pdfFiles, setPdfFiles] = useState<string[]>([]);
   const [names, setNames] = useState<string[][]>([]);
+  const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
-  const [generatedFiles, setGeneratedFiles] = useState<{ name: string; file: string }[]>([]);
+  const [loadingNames, setLoadingNames] = useState(true);
+  const [generatedFiles, setGeneratedFiles] = useState<
+    { name: string; file: string }[]
+  >([]);
   const [uploadingToDrive, setUploadingToDrive] = useState(false);
   const [driveResult, setDriveResult] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoadingNames(true);
     fetch("/api/getNames")
       .then((res) => res.json())
-      .then((data) => setNames(data.names))
-      .catch((err) => console.error("Помилка отримання імен:", err));
+      .then((data) => {
+        const filtered = data.names.filter(
+          (row: string[], index: number) =>
+            index === 0 || row.some((cell) => cell && cell.trim() !== "")
+        );
+        setNames(filtered);
+      })
+      .catch((err) => console.error("Помилка отримання імен:", err))
+      .finally(() => setLoadingNames(false));
 
     fetch("/api/listPdfs")
       .then((res) => res.json())
@@ -23,28 +39,37 @@ export default function Home() {
   }, []);
 
   const handleProcessPdf = async () => {
-    if (!selectedPdf) {
-      alert("Оберіть PDF-файл!");
+    if (selectedPdf.length === 0) {
+      alert("Оберіть хоча б один PDF-файл!");
       return;
     }
-
+  
+    // Додаємо +1, щоб відповідало індексації в names
+    const filteredNames = selectedRows
+      .map((i) => names[i + 1]) // +1 бо headers в names[0]
+      .filter((row) => row && row.some((cell) => cell && cell.trim() !== ""));
+    if (filteredNames.length === 0) {
+      alert("Оберіть хоча б один непорожній рядок для генерації!");
+      return;
+    }
+  
     setLoading(true);
     setGeneratedFiles([]);
-
+  
     try {
       const formData = new FormData();
-      formData.append("fileName", selectedPdf);
-      formData.append("names", JSON.stringify(names));
-
+      formData.append("fileNames", JSON.stringify(selectedPdf)); // масив PDF-файлів
+      formData.append("names", JSON.stringify([names[0], ...filteredNames])); // додаємо заголовок
+  
       const response = await fetch("/api/replaceText", {
         method: "POST",
         body: formData
       });
-
+  
       if (!response.ok) {
         throw new Error("Не вдалося обробити PDF");
       }
-
+  
       const data = await response.json();
       setGeneratedFiles(data.files);
     } catch (error) {
@@ -54,6 +79,7 @@ export default function Home() {
       setLoading(false);
     }
   };
+  
 
   const handleSaveToDrive = async () => {
     if (generatedFiles.length === 0) return;
@@ -95,74 +121,34 @@ export default function Home() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="max-w-lg mx-auto shadow-lg p-4 rounded-md bg-white">
+      <div className="w-full shadow-lg p-4 rounded-md bg-white">
         <h1 className="text-xl font-bold mb-4 text-black">Генерація PDF</h1>
+        <DataRowsList
+          data={names}
+          loading={loadingNames}
+          selectedRows={selectedRows}
+          setSelectedRows={setSelectedRows}
+        />
 
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1 text-black">
-            Оберіть PDF:
-          </label>
-          <select
-            className="w-full border rounded-md p-2 text-black"
-            value={selectedPdf || ""}
-            onChange={(e) => setSelectedPdf(e.target.value)}
-          >
-            <option value="">-- Виберіть PDF --</option>
-            {pdfFiles.map((file, index) => (
-              <option key={index} value={file}>
-                {file}
-              </option>
-            ))}
-          </select>
-        </div>
+        <PdfSelector
+          pdfFiles={pdfFiles}
+          selectedPdf={selectedPdf}
+          setSelectedPdf={setSelectedPdf}
+        />
 
-        {selectedPdf && (
-          <p className="mt-4 text-black">
-            Вибраний файл: <strong>{selectedPdf}</strong>
-          </p>
-        )}
+        <PdfActions
+          selectedPdf={selectedPdf.length > 0 ? "selected" : null}
+          loading={loading}
+          onGenerate={handleProcessPdf}
+        />
 
-        <button
-          className={`bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 mt-4 ${
-            loading ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-          disabled={!selectedPdf || loading}
-          onClick={handleProcessPdf}
-        >
-          {loading ? "Обробка..." : "Згенерувати PDF"}
-        </button>
-
-        {generatedFiles.length > 0 && (
-          <div className="mt-6">
-            <h2 className="text-lg font-bold text-black">Згенеровані файли:</h2>
-            <ul>
-              {generatedFiles.map((file, index) => (
-                <li key={index} className="mb-1">
-                  <button
-                    className="text-blue-600 hover:underline"
-                    onClick={() => handleDownload(file)}
-                  >
-                    {file.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-4 flex gap-4">
-              <button
-                onClick={handleSaveToDrive}
-                className="bg-green-500 text-white px-4 py-2 rounded-md mt-4 hover:bg-green-600"
-                disabled={uploadingToDrive}
-              >
-                {uploadingToDrive
-                  ? "Завантаження на Google Диск..."
-                  : "Зберегти на Google Диск"}
-              </button>
-
-              {driveResult && <p className="mt-2 text-black">{driveResult}</p>}
-            </div>
-          </div>
-        )}
+        <GeneratedFilesList
+          files={generatedFiles}
+          onDownload={handleDownload}
+          onUploadToDrive={handleSaveToDrive}
+          uploading={uploadingToDrive}
+          resultMessage={driveResult}
+        />
       </div>
     </div>
   );

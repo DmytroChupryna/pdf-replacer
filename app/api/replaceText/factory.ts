@@ -21,7 +21,7 @@ export function generateCellsObject(
 
   const result: Record<string, CellEntry>[] = [];
 
-  for (let i = 2; i < cells.length; i++) {
+  for (let i = 1; i < cells.length; i++) {
     const row = cells[i];
     const rowObj: Record<string, CellEntry> = {};
 

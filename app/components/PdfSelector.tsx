@@ -1,40 +1,37 @@
-'use client'
-import { useState, useEffect } from "react";
+type PdfSelectorProps = {
+  pdfFiles: string[];
+  selectedPdf: string[];
+  setSelectedPdf: (value: string[]) => void;
+};
 
-interface PdfSelectorProps {
-  onSelect: (fileName: string) => void;
-}
-
-export default function PdfSelector({ onSelect }: PdfSelectorProps) {
-  const [pdfFiles, setPdfFiles] = useState<string[]>([]);
-
-  useEffect(() => {
-    const fetchPdfFiles = async () => {
-      try {
-        const response = await fetch("/api/listPdfs");
-        const files = await response.json();
-        setPdfFiles(files);
-      } catch (error) {
-        console.error("Помилка при отриманні списку PDF:", error);
-      }
-    };
-
-    fetchPdfFiles();
-  }, []);
+export default function PdfSelector({ pdfFiles, selectedPdf, setSelectedPdf }: PdfSelectorProps) {
+  const handleCheckboxChange = (file: string) => {
+    if (selectedPdf.includes(file)) {
+      setSelectedPdf(selectedPdf.filter((f) => f !== file));
+    } else {
+      setSelectedPdf([...selectedPdf, file]);
+    }
+  };
 
   return (
-    <div className="mb-4">
-      <label className="block text-sm font-medium mb-1 text-black">Виберіть PDF-файл</label>
-      <select
-        className="w-full border rounded-md p-2 text-black"
-        onChange={(e) => onSelect(e.target.value)}
-        defaultValue=""
-      >
-        <option value="" disabled>Оберіть файл</option>
+    <div className="mb-6">
+      <h2 className="text-lg font-semibold text-black mb-2">Оберіть PDF-файли:</h2>
+      <div className="border border-gray-300 rounded-md p-3 max-h-64 overflow-y-auto space-y-2 bg-gray-50">
         {pdfFiles.map((file, index) => (
-          <option key={index} value={file}>{file}</option>
+          <label
+            key={index}
+            className="flex items-center gap-3 p-2 hover:bg-white rounded-md cursor-pointer text-sm"
+          >
+            <input
+              type="checkbox"
+              className="accent-blue-600 w-4 h-4"
+              checked={selectedPdf.includes(file)}
+              onChange={() => handleCheckboxChange(file)}
+            />
+            <span className="text-gray-800 break-words">{file}</span>
+          </label>
         ))}
-      </select>
+      </div>
     </div>
   );
 }
