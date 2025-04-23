@@ -44,10 +44,11 @@ export default function Home() {
       return;
     }
   
-    // Додаємо +1, щоб відповідало індексації в names
     const filteredNames = selectedRows
-      .map((i) => names[i + 1]) // +1 бо headers в names[0]
+      .map((i) => names[i])
       .filter((row) => row && row.some((cell) => cell && cell.trim() !== ""));
+
+    console.log("🔍 Знайдено рядків:", selectedRows);
     if (filteredNames.length === 0) {
       alert("Оберіть хоча б один непорожній рядок для генерації!");
       return;

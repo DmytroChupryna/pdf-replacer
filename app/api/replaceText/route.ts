@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
       row.some((cell) => cell && cell.trim() !== "")
     );
 
+    console.log("🔍 Знайдено рядків:", dataRows);
+
     const transformedRows = dataRows.map((row) =>
       generateCellsObject([rawData[0], row], rawData[0])[0]
     );
